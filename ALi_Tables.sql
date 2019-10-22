@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS Auctions
 (
   `Id` INT AUTO_INCREMENT,
   `AuctionId` VARCHAR(14) NOT NULL,
-  `CourtId` INT NOT NULL,
+  `CourtId` VARCHAR(20) NOT NULL,
   `Title` VARCHAR(100) NOT NULL,
   `CategoryId` INT NOT NULL,
   `Url` VARCHAR(80) NOT NULL,
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS Auctions
   `Enrollment` VARCHAR(10) DEFAULT NULL,
   `SetReminders` INT DEFAULT NULL,
   `Onlookers` VARCHAR(10) DEFAULT NULL,
-  `CreatedOn` DATE DEFAULT NULL,
-  `UpdatedOn` DATE DEFAULT NULL,
+  `CreatedOn` DATETIME DEFAULT NULL,
+  `UpdatedOn` DATETIME DEFAULT NULL,
   `StatusId` INT NOT NULL,
   `SpiderStatusId` INT NOT NULL,
   PRIMARY KEY (`Id`)

@@ -86,7 +86,6 @@ class AuctionSpiderGPai:
                 cash_deposit = cashDeposit[0]
                 auction_json['cash_deposit'] = cash_deposit[4:].replace(",", "")
 
-        accessPrice = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[4]/td[1]/text()')
         top_info = soup.find('tbody', id='J_HoverShow')
         tds = top_info.find_all('td')
         start_price_span = tds[0].find_all('span')[2]
@@ -95,33 +94,26 @@ class AuctionSpiderGPai:
         cash_deposit_span = tds[3].find_all('span')[1].span
         auction_cycle_span = tds[4].find_all('span')[1].span
         prior_buyer_span = tds[5].find_all('span')[1]
+        access_price_span = tds[6].find_all('span')[1].span
 
         self.assign_auction_property(auction_json, 'StartPrice', start_price_span, True)
-        auction_json['CurrentPrice'] = soup.find('span', class_='pm-current-price').text.replace(',', '')
         self.assign_auction_property(auction_json, 'FareIncrease', increment_span, True)
         self.assign_auction_property(auction_json, 'CashDeposit', cash_deposit_span, True)
+        self.assign_auction_property(auction_json, 'AccessPrice', access_price_span, True)
 
         auction_json['Title'] = soup.find('h1').text
+        auction_json['CurrentPrice'] = soup.find('span', class_='pm-current-price').text.replace(',', '')
         auction_json['CorporateAgent'] = soup.find('span', class_='item-announcement').text
         auction_json['Phone'] = soup.find('div', class_='contact-unit').find('p', class_='contact-line').find('span', class_='c-text').text
         auction_json['BiddingRecord'] = soup.find('span', class_='current-bid-user').text if soup.find('span', class_='current-bid-user') else ''
-        auction_json['SetReminders'] = soup.find('span', class_='pm-reminder').text if soup.find('span', class_='current-bid-user') else 0
-        auction_json['Onlookers'] = soup.find('span', class_='pm-surround').text if soup.find('span', class_='current-bid-user') else 0
+        auction_json['SetReminders'] = soup.find('span', class_='pm-reminder').find('em').text if soup.find('span', class_='pm-reminder') else 0
+        auction_json['Onlookers'] = soup.find('span', class_='pm-surround').find('em').text if soup.find('span', class_='pm-surround') else 0
 
-        auction_json['AccessPrice'] = 0
-        if accessPrice.__len__() != 0:
-            access_price = accessPrice[0]
-            auction_json['AccessPrice'] = access_price.replace("	", "")[5:-1].replace(",", "").replace("	", "")
-
-        # self.assign_auction_property(auction_json, 'Title', html, r'class="d-m-title"><b>(.*?)</b>', True)
         self.assign_auction_property_et(auction_json, 'Enrollment', et, '//div[@class="peoples-infos"]/span[1]/b[1]/text()')
         # self.assign_auction_property(auction_json, 'CourtName', html, r"<td nowrap class='pr7'>(.*?)</td>", False, 5)
-        # self.assign_auction_property(auction_json, 'CorporateAgent', html, r"<td valign='top'>(.*?)</td>", False, 4)
-        # self.assign_auction_property(auction_json, 'Phone', html, r"<td colspan='2'>(.*?)</td>", False, 5)
-        # self.assign_auction_property(auction_json, 'BiddingRecord', html, r"id='html_Bid_Shu'>(.*?)</span>", True)
-        # self.assign_auction_property(auction_json, 'CurrentPrice', html, r"<b class='price-red'>(.*?)</b>", True)
+
         auction_json['Url'] = url
-        auction_json['datetime'] = dataTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+        auction_json['datetime'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
         auction_json['AuctionId'] = url[35:-4]
         auction_json['CourtId'] = court_id
         auction_json['CategoryId'] = category_id
