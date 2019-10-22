@@ -132,8 +132,11 @@ class MySQL:
                      + ',SpiderStatusId=2 WHERE AuctionId=' + str(auction_json['AuctionId'])
         self.upsert(insert_check, insert_sql, update_sql)
 
+
 # if __name__ == '__main__':
-#     mysql = Mysql()
+#     mysql = MySQL('auction_spider_ali')
+#     ddd = mysql.get_categories()
+#     print(ddd)
 #     court_list = mysql.getCourtList()
 #     for court in court_list:
 #         print(court[2] + "," + str(court[0]) + "," + str(court[1]))

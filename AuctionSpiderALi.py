@@ -10,6 +10,8 @@ import DateTimeUtil
 import UrlUtil
 from threading import Thread
 import threading
+import decimal
+from decimal import *
 
 
 class AuctionSpiderGPai:
@@ -34,6 +36,7 @@ class AuctionSpiderGPai:
         html = UrlUtil.get_html_with_proxy(url, False)
         et = etree.HTML(html)
         soup = BeautifulSoup(html, 'html.parser', from_encoding='gbk')
+
         auction_model_div = et.xpath('//span[@class="pay-type"]/text()')
         auction_json['AuctionModel'] = ""
         if auction_model_div.__len__() != 0:
@@ -66,8 +69,6 @@ class AuctionSpiderGPai:
                 auction_json['OnlineCycle'] = online_cycle[4:]
 
         self.assign_auction_property_et(auction_json, 'DelayCycle', et, '//div[@class="d-m-tb"]/table[1]/tr[2]/td[2]/text()', 5)
-        self.assign_auction_property(auction_json, 'FareIncrease', html, r'<span id="Price_Step">(.*?)</span>', True)
-        self.assign_auction_property(auction_json, 'StartPrice', html, r'<span class="J_Price">\s*(.*?) \s*</span', True)
 
         auction_json['CashDeposit'] = ""
         auction_json['PaymentAdvance'] = ""
@@ -88,23 +89,37 @@ class AuctionSpiderGPai:
         accessPrice = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[4]/td[1]/text()')
         top_info = soup.find('tbody', id='J_HoverShow')
         tds = top_info.find_all('td')
-        # for sb in sibling2:
-        #     print(sb)
+        start_price_span = tds[0].find_all('span')[2]
+        increment_span = tds[1].find_all('span')[2]
+        auction_type_span = tds[2].find_all('span')[1].span
+        cash_deposit_span = tds[3].find_all('span')[1].span
+        auction_cycle_span = tds[4].find_all('span')[1].span
+        prior_buyer_span = tds[5].find_all('span')[1]
+
+        self.assign_auction_property(auction_json, 'StartPrice', start_price_span, True)
+        auction_json['CurrentPrice'] = soup.find('span', class_='pm-current-price').text.replace(',', '')
+        self.assign_auction_property(auction_json, 'FareIncrease', increment_span, True)
+        self.assign_auction_property(auction_json, 'CashDeposit', cash_deposit_span, True)
+
+        auction_json['Title'] = soup.find('h1').text
+        auction_json['CorporateAgent'] = soup.find('span', class_='item-announcement').text
+        auction_json['Phone'] = soup.find('div', class_='contact-unit').find('p', class_='contact-line').find('span', class_='c-text').text
+        auction_json['BiddingRecord'] = soup.find('span', class_='current-bid-user').text if soup.find('span', class_='current-bid-user') else ''
+        auction_json['SetReminders'] = soup.find('span', class_='pm-reminder').text if soup.find('span', class_='current-bid-user') else 0
+        auction_json['Onlookers'] = soup.find('span', class_='pm-surround').text if soup.find('span', class_='current-bid-user') else 0
+
         auction_json['AccessPrice'] = 0
         if accessPrice.__len__() != 0:
             access_price = accessPrice[0]
             auction_json['AccessPrice'] = access_price.replace("	", "")[5:-1].replace(",", "").replace("	", "")
 
-        self.assign_auction_property(auction_json, 'Title', html, r'class="d-m-title"><b>(.*?)</b>', True)
+        # self.assign_auction_property(auction_json, 'Title', html, r'class="d-m-title"><b>(.*?)</b>', True)
         self.assign_auction_property_et(auction_json, 'Enrollment', et, '//div[@class="peoples-infos"]/span[1]/b[1]/text()')
-        self.assign_auction_property_et(auction_json, 'SetReminders', et, '//div[@class="peoples-infos"]/span[2]/b[1]/text()')
-        self.assign_auction_property_et(auction_json, 'Onlookers', et, '//div[@class="peoples-infos"]/span[3]/b[1]/text()')
-        self.assign_auction_property(auction_json, 'CourtName', html, r"<td nowrap class='pr7'>(.*?)</td>", False, 5)
-        self.assign_auction_property(auction_json, 'CorporateAgent', html, r"<td valign='top'>(.*?)</td>", False, 4)
-        self.assign_auction_property(auction_json, 'Phone', html, r"<td colspan='2'>(.*?)</td>", False, 5)
-        self.assign_auction_property(auction_json, 'BiddingRecord', html, r"id='html_Bid_Shu'>(.*?)</span>", True)
-        self.assign_auction_property(auction_json, 'CurrentPrice', html, r"<b class='price-red'>(.*?)</b>", True)
-
+        # self.assign_auction_property(auction_json, 'CourtName', html, r"<td nowrap class='pr7'>(.*?)</td>", False, 5)
+        # self.assign_auction_property(auction_json, 'CorporateAgent', html, r"<td valign='top'>(.*?)</td>", False, 4)
+        # self.assign_auction_property(auction_json, 'Phone', html, r"<td colspan='2'>(.*?)</td>", False, 5)
+        # self.assign_auction_property(auction_json, 'BiddingRecord', html, r"id='html_Bid_Shu'>(.*?)</span>", True)
+        # self.assign_auction_property(auction_json, 'CurrentPrice', html, r"<b class='price-red'>(.*?)</b>", True)
         auction_json['Url'] = url
         auction_json['datetime'] = dataTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
         auction_json['AuctionId'] = url[35:-4]
@@ -113,16 +128,18 @@ class AuctionSpiderGPai:
         auction_json['StatusId'] = status_id
         return auction_json
 
-    def assign_auction_property(self, auction_json, json_property, html, regex, is_digital, start_index=0):
-        regex_raw_result = re.findall(re.compile(regex, re.S), html.decode('gbk'))
-        auction_json[json_property] = 0
-        if regex_raw_result.__len__() != 0:
-            regex_result = regex_raw_result[0]
+    def assign_auction_property(self, auction_json, json_property, span_field, is_digital, start_index=0):
+        property_value_raw = span_field.text
+        if property_value_raw.__len__() != 0:
             if is_digital:
-                if regex_result != '':
-                    auction_json[json_property] = int(regex_result.replace(',', ''))
+                auction_json[json_property] = Decimal(property_value_raw.replace(',', ''))
             else:
-                auction_json[json_property] = regex_result if start_index == 0 else regex_result[start_index:]
+                auction_json[json_property] = property_value_raw if start_index == 0 else property_value_raw[start_index:]
+        else:
+            if is_digital:
+                auction_json[json_property] = 0
+            else:
+                auction_json[json_property] = ''
 
     def assign_auction_property_et(self, auction_json, json_property, et, et_str, start_index=0):
         et_raw_result = et.xpath(et_str)
@@ -138,7 +155,7 @@ class AuctionSpiderGPai:
             url = 'https://sf-item.taobao.com/sf_item/' + url_partial
             auction_json = self.get_auction_json(url, court_id, category_id, status_id)
             mysql_instance.upsert_auction(auction_json, table_name)
-        return len(url_list)
+        return len(url_partial_list)
 
     def spider_auctions(self, court_list, is_auction_history):
         print("Start Craw..." + str(threading.currentThread().ident))
@@ -174,7 +191,7 @@ class AuctionSpiderGPai:
                             # print('total count: ' + str(total_count) + ' page count: ' + str(page_total))
                             for page_number in range(1, page_total + 1):
                                 url = url_auctions_list + '&page=' + str(page_number)
-                                count += self.spider_auction_list_and_insert(url, court[1], category_id, status[1], mysql_instance, is_auction_history)
+                                count += self.spider_auction_list_and_insert(url, user_id, category_id, status[1], mysql_instance, is_auction_history)
         # print(court[2] + ": spider finish with count: " + str(count))
         print("spider finish with count: ", str(count))
         print("Finish Craw..." + str(threading.currentThread().ident))
