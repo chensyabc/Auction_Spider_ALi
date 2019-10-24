@@ -37,54 +37,17 @@ class AuctionSpiderGPai:
         et = etree.HTML(html)
         soup = BeautifulSoup(html, 'html.parser', from_encoding='gbk')
 
-        auction_model_div = et.xpath('//span[@class="pay-type"]/text()')
         auction_json['AuctionModel'] = ""
-        if auction_model_div.__len__() != 0:
-            auction_model = auction_model_div[0]
-            len = auction_model.__len__()
-            if len > 7:
-                auction_json['AuctionModel'] = auction_model[7:]
-            else:
-                auction_json['AuctionModel'] = auction_model[5:]
+        auction_json['AuctionType'] = ""
         auction_json['SellingPeriod'] = ""
-        auction_json['AuctionTimes'] = ""
-        auctionTimes = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[1]/td[2]/text()')
-        if auctionTimes.__len__() != 0:
-            auction_times = auctionTimes[0]
-            if str(auction_json['AuctionModel'].encode('utf-8')) == '变卖':
-                auction_json['SellingPeriod'] = auction_times[4:]
-            else:
-                auction_json['AuctionTimes'] = auction_times[5:]
-
-        self.assign_auction_property_et(auction_json, 'AuctionType', et, '//div[@class="d-m-tb"]/table[1]/tr[1]/td[3]/text()', 5)
-
-        onlineCycle = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[2]/td[1]/text()')
-        auction_json['OnlineCycle'] = ""
-        if onlineCycle.__len__() != 0:
-            online_cycle = onlineCycle[0]
-            len = online_cycle.__len__()
-            if len > 8:
-                auction_json['OnlineCycle'] = online_cycle[6:]
-            else:
-                auction_json['OnlineCycle'] = online_cycle[4:]
-
-        self.assign_auction_property_et(auction_json, 'DelayCycle', et, '//div[@class="d-m-tb"]/table[1]/tr[2]/td[2]/text()', 5)
+        # print(soup.find('td', class_='delay-td').find('span'))
+        # print(soup.find('td', class_='delay-td').find_all('span')[1])
+        auction_json['AuctionTimes'] = soup.find('td', class_='delay-td').find_all('span')[1].text[1:]
+        auction_json['OnlineCycle'] = soup.find('span', class_='pay-mark').text
+        auction_json['DelayCycle'] = soup.find('td', class_='delay-td').text
 
         auction_json['CashDeposit'] = ""
         auction_json['PaymentAdvance'] = ""
-        if str(auction_json['AuctionModel'].encode('utf-8')) == '变卖':
-            paymentAdvance = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[3]/td[2]/text()')
-            cashDeposit = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[3]/td[3]/text()')
-            if paymentAdvance.__len__() != 0:
-                payment_advance = paymentAdvance[0]
-                cash_deposit = cashDeposit[0]
-                auction_json['cash_deposit'] = cash_deposit[4:].replace(",", "")
-                auction_json['payment_advance'] = payment_advance[6:].replace(",", "")
-        else:
-            cashDeposit = et.xpath('//div[@class="d-m-tb"]/table[1]/tr[3]/td[2]/text()')
-            if cashDeposit.__len__() != 0:
-                cash_deposit = cashDeposit[0]
-                auction_json['cash_deposit'] = cash_deposit[4:].replace(",", "")
 
         top_info = soup.find('tbody', id='J_HoverShow')
         tds = top_info.find_all('td')
@@ -108,9 +71,7 @@ class AuctionSpiderGPai:
         auction_json['BiddingRecord'] = soup.find('span', class_='current-bid-user').text if soup.find('span', class_='current-bid-user') else ''
         auction_json['SetReminders'] = soup.find('span', class_='pm-reminder').find('em').text if soup.find('span', class_='pm-reminder') else 0
         auction_json['Onlookers'] = soup.find('span', class_='pm-surround').find('em').text if soup.find('span', class_='pm-surround') else 0
-
-        self.assign_auction_property_et(auction_json, 'Enrollment', et, '//div[@class="peoples-infos"]/span[1]/b[1]/text()')
-        # self.assign_auction_property(auction_json, 'CourtName', html, r"<td nowrap class='pr7'>(.*?)</td>", False, 5)
+        auction_json['Enrollment'] = soup.find('em', class_='J_Applyer').text
 
         auction_json['Url'] = url
         auction_json['datetime'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
