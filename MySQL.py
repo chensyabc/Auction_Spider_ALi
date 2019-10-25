@@ -35,9 +35,11 @@ class MySQL:
             self.cur.execute(select_sql)
             return list(self.cur._rows)
         except MySQLdb.Error as e:
+            print(select_sql)
             print(DateTimeUtil.get_current_time(), "DB Select Failure: %d: %s" % (e.args[0], e.args[1]))
         except Exception as ex:
-            print(DateTimeUtil.get_current_time(), "DB Select Failure: %d: %s" % (e.args[0], e.args[1]))
+            print(select_sql)
+            print(DateTimeUtil.get_current_time(), "DB Select Failure: %d: %s" % (ex.args[0], ex.args[1]))
 
     def upsert(self, insert_sql_check, insert_sql, update_sql):
         try:
@@ -68,9 +70,13 @@ class MySQL:
                 else:
                     return 0
         except MySQLdb.Error as e:
+            print(insert_sql)
+            print(update_sql)
             print(DateTimeUtil.get_current_time(), "Upsert Failure: %d: %s" % (e.args[0], e.args[1]))
             exit()
         except Exception as ex:
+            print(insert_sql)
+            print(update_sql)
             print(DateTimeUtil.get_current_time(), "DB Object Error: %d: %s" % (ex.args[0], ex.args[1]))
 
     def upsert_auction(self, auction_json, is_auction_history):
@@ -99,8 +105,8 @@ class MySQL:
                                                               auction_json['BiddingRecord']) + "','" + str(
                                                               auction_json['AuctionModel']) + "','" + str(
                                                               auction_json['Enrollment']) + "','" + str(
-                                                              auction_json['SetReminders']) + "','" + str(
-                                                              auction_json['Onlookers']) + "','" + str(
+                                                              auction_json['SetReminders']) + "'," + str(
+                                                              auction_json['Onlookers']) + ",'" + str(
                                                               auction_json['datetime']) + "','" + str(
                                                               auction_json['StatusId']) + "','1'")
         update_sql = 'UPDATE ' + table_name + ' SET ' \
@@ -120,8 +126,8 @@ class MySQL:
                      + '",CorporateAgent="' + str(auction_json['CorporateAgent'])\
                      + '",Phone="' + str(auction_json['Phone'])\
                      + '",SellingPeriod="' + str(auction_json['SellingPeriod'])\
-                     + '",SetReminders="' + str(auction_json['SetReminders'])\
-                     + '",OnlineCycle="' + str(auction_json['OnlineCycle'])\
+                     + '",SetReminders=' + str(auction_json['SetReminders'])\
+                     + ',OnlineCycle="' + str(auction_json['OnlineCycle'])\
                      + '",BiddingRecord="' + str(auction_json['BiddingRecord'])\
                      + '",AuctionModel="' + str(auction_json['AuctionModel'])\
                      + '",Enrollment="' + str(auction_json['Enrollment'])\

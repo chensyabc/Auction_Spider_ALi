@@ -44,7 +44,7 @@ class AuctionSpiderGPai:
         # print(soup.find('td', class_='delay-td').find_all('span')[1])
         auction_json['AuctionTimes'] = soup.find('td', class_='delay-td').find_all('span')[1].text[1:]
         auction_json['OnlineCycle'] = soup.find('span', class_='pay-mark').text
-        auction_json['DelayCycle'] = soup.find('td', class_='delay-td').text
+        auction_json['DelayCycle'] = soup.find('td', class_='delay-td').text.replace('\n', '').strip()
 
         auction_json['CashDeposit'] = ""
         auction_json['PaymentAdvance'] = ""
@@ -64,11 +64,11 @@ class AuctionSpiderGPai:
         self.assign_auction_property(auction_json, 'CashDeposit', cash_deposit_span, True)
         self.assign_auction_property(auction_json, 'AccessPrice', access_price_span, True)
 
-        auction_json['Title'] = soup.find('h1').text
-        auction_json['CurrentPrice'] = soup.find('span', class_='pm-current-price').text.replace(',', '')
-        auction_json['CorporateAgent'] = soup.find('span', class_='item-announcement').text
+        auction_json['Title'] = soup.find('h1').text.replace(u"\u2022", u" ").replace(u"\xa0", u" ").strip()
+        auction_json['CurrentPrice'] = soup.find('span', class_='pm-current-price').text.replace(',', '').strip()
+        auction_json['CorporateAgent'] = soup.find('span', class_='item-announcement').text.strip()
         auction_json['Phone'] = soup.find('div', class_='contact-unit').find('p', class_='contact-line').find('span', class_='c-text').text
-        auction_json['BiddingRecord'] = soup.find('span', class_='current-bid-user').text if soup.find('span', class_='current-bid-user') else ''
+        auction_json['BiddingRecord'] = soup.find('span', class_='current-bid-user').text.strip() if soup.find('span', class_='current-bid-user') else ''
         auction_json['SetReminders'] = soup.find('span', class_='pm-reminder').find('em').text if soup.find('span', class_='pm-reminder') else 0
         auction_json['Onlookers'] = soup.find('span', class_='pm-surround').find('em').text if soup.find('span', class_='pm-surround') else 0
         auction_json['Enrollment'] = soup.find('em', class_='J_Applyer').text
