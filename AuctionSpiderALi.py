@@ -10,6 +10,7 @@ import DateTimeUtil
 import UrlUtil
 from threading import Thread
 import threading
+import ThreadUtil
 import decimal
 from decimal import *
 
@@ -110,13 +111,14 @@ class AuctionSpiderGPai:
             mysql_instance.upsert_auction(auction_json, table_name)
         return len(url_partial_list)
 
-    def spider_auctions(self, court_list, is_auction_history):
-        print("Start Craw..." + str(threading.currentThread().ident))
+    def spider_auctions(self, court_list, is_auction_history, thread_order):
+        print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_order(thread_order) + " Start Craw...")
         mysql_instance = MySQL.MySQL('auction_spider_ali')
         categories = mysql_instance.get_categories()
         statuses = mysql_instance.get_statuses(is_auction_history)
         count = 0
-        for court in court_list:
+        for court_order in range(len(court_list)):
+            court=court_list[court_order]
             # print('Thread Id: ' + str(threading.currentThread().ident), end='')
             # print(court)
             if int(court[4]) == 0:
@@ -143,34 +145,39 @@ class AuctionSpiderGPai:
                             # process url to get html and insert
                             # print('total count: ' + str(total_count) + ' page count: ' + str(page_total))
                             for page_number in range(1, page_total + 1):
+                                print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_order(thread_order) + "Process Craw...", "courts " + str(court_order+1) + "/" + str(len(court_list)), "page "+str(page_number)+"/"+str(page_total))
                                 url = url_auctions_list + '&page=' + str(page_number)
                                 count += self.spider_auction_list_and_insert(url, user_id, category_id, status[1], mysql_instance, is_auction_history)
         # print(court[2] + ": spider finish with count: " + str(count))
-        print("spider finish with count: ", str(count))
-        print("Finish Craw..." + str(threading.currentThread().ident))
+        print(DateTimeUtil.get_current_time(), "spider finish with count: ", str(count), ThreadUtil.get_thread_id_order(thread_order))
+        print(DateTimeUtil.get_current_time(), "Finish Craw..." + ThreadUtil.get_thread_id_order(thread_order))
 
 
 if __name__ == '__main__':
     auctionSpiderGPai = AuctionSpiderGPai()
-    mysql = MySQL.MySQL('auction_spider_ali')
-    print(DateTimeUtil.get_current_time() + " start main progress")
+    print(DateTimeUtil.get_current_time() + " Start Main Progress--------------------------------------------------------------")
     # prepare
+    print(DateTimeUtil.get_current_time(), "Get Courts Start--------------------------------------------------------------")
+    mysql = MySQL.MySQL('auction_spider_ali')
     courts = mysql.get_courts()
+    print(DateTimeUtil.get_current_time(), "Get Courts End--------------------------------------------------------------")
     thread_count = 4
     each_count = len(courts) // thread_count
     # start multiple thread
     thread_array = {}
     start_time = time.time()
     is_auction_history = False
-    for tid in range(thread_count):
+    print(DateTimeUtil.get_current_time(), "Spider Courts Start--------------------------------------------------------------")
+    for thread_order in range(thread_count):
         # t = Thread(target=auctionSpiderGPai.spider_auctions, args=(courts[tid:(tid+1)],))
-        print('count: ' + str(len(courts[tid*each_count:(tid+1)*each_count])), end='')
-        print(courts[tid*each_count:(tid+1)*each_count])
-        t = Thread(target=auctionSpiderGPai.spider_auctions, args=(courts[tid*each_count:(tid+1)*each_count], is_auction_history, ))
+        print(DateTimeUtil.get_current_time() + ' Thread Order-' + str(thread_order), 'court count: ' + str(len(courts[thread_order * each_count:(thread_order + 1) * each_count])) + " court list: below")
+        print(courts[thread_order * each_count:(thread_order + 1) * each_count])
+        t = Thread(target=auctionSpiderGPai.spider_auctions, args=(courts[thread_order * each_count:(thread_order + 1) * each_count], is_auction_history,str(thread_order),))
         t.start()
-        thread_array[tid] = t
+        thread_array[thread_order] = t
     for i in range(thread_count):
         thread_array[i].join()
     end_time = time.time()
-    print("Total time: {}".format(end_time - start_time))
-    print(DateTimeUtil.get_current_time() + " end main progress")
+    print(DateTimeUtil.get_current_time(), "Spider Courts End--------------------------------------------------------------")
+    print(DateTimeUtil.get_current_time(), "Total time: {}".format(end_time - start_time))
+    print(DateTimeUtil.get_current_time(), "End Main Progress--------------------------------------------------------------")

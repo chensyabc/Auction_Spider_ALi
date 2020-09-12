@@ -37,7 +37,7 @@ class CourtUtil:
                 court_name = court_info[2]
                 auction_count = court_info[3]
                 select_sql = 'select count(*) from Courts where CourtCityId="' + court_city_id + '" and CourtSubId="' + court_sub_id + '"'
-                insert_sql = 'insert into Courts (CourtCityId, CourtSubId, CourtName, AuctionCount) values ("' + court_city_id + '","' + court_sub_id + '","' + court_name + '",' + auction_count + ')'
+                insert_sql = 'insert into Courts (CourtCityId, CourtSubId, CourtId, CourtName, AuctionCount) values ("' + court_city_id + '","' + court_sub_id + '","'+ court_sub_id + '","' + court_name + '",' + auction_count + ')'
                 update_sql = 'update Courts set AuctionCount= ' + auction_count + ' where CourtCityId="' + court_city_id + '" and CourtSubId="' + court_sub_id + '"'
                 mysql.upsert(select_sql, insert_sql, update_sql)
         print("end to get court list and insert into DB")

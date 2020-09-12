@@ -1,17 +1,21 @@
-﻿import MySQLdb
+﻿#import MySQLdb
 import DateTimeUtil
 import threading
-
+import pymysql
+import ThreadUtil
 
 class MySQL:
     def __init__(self, database_table):
         try:
-            print(DateTimeUtil.get_current_time(), "Start Connection DB...")
-            self.db = MySQLdb.connect('localhost', 'root', 'chensy123', database_table, 3306)
+            #print(DateTimeUtil.get_current_time(), "Start Connection DB...", ThreadUtil.get_thread_id())
+            self.db = pymysql.connect('localhost', 'root', 'chensy123', database_table, 3306)
             self.cur = self.db.cursor()
-            print(DateTimeUtil.get_current_time(), "Connection DB Successful...", str(threading.currentThread().ident))
-        except MySQLdb.Error as e:
-            print(DateTimeUtil.get_current_time(), "Connection DB Failure: %d: %s" % (e.args[0], e.args[1]), str(threading.currentThread().ident))
+            #print(DateTimeUtil.get_current_time(), "Connect DB Successfully...", ThreadUtil.get_thread_id())
+        except pymysql.Error as e:
+            print(DateTimeUtil.get_current_time(), "Connect DB Failure e: %d %d" % (e.args[0], ThreadUtil.get_thread_id()))
+            #print(DateTimeUtil.get_current_time(), "Connection DB Failure e: %d: %s" % (e.args[0], e.args[1]), str(threading.currentThread().ident))
+        except Exception as ex:
+            print(DateTimeUtil.get_current_time(), "Connection DB Failure ex: %d: %s" % (ex.args[0], ex.args[1]), ThreadUtil.get_thread_id())
 
     def get_courts(self, is_filter_count=True):
         if is_filter_count:
@@ -31,10 +35,10 @@ class MySQL:
 
     def select(self, select_sql):
         try:
-            self.db.set_character_set('utf8')
+            self.db.set_charset('utf8')
             self.cur.execute(select_sql)
             return list(self.cur._rows)
-        except MySQLdb.Error as e:
+        except pymysql.Error as e:
             print(select_sql)
             print(DateTimeUtil.get_current_time(), "DB Select Failure: %d: %s" % (e.args[0], e.args[1]))
         except Exception as ex:
@@ -43,7 +47,7 @@ class MySQL:
 
     def upsert(self, insert_sql_check, insert_sql, update_sql):
         try:
-            self.db.set_character_set('gbk')
+            self.db.set_charset('gbk')
             self.cur.execute(insert_sql_check)
             if self.cur._rows[0][0] == 0:
                 try:
@@ -54,11 +58,12 @@ class MySQL:
                         return insert_id
                     else:
                         return 0
-                except MySQLdb.Error as e:
+                except pymysql.Error as e:
                     self.db.rollback()
                     if "key 'PRIMARY'" in e.args[1]:
                         print(DateTimeUtil.get_current_time(), "Primary Key Exists")
                     else:
+                        print(DateTimeUtil.get_current_time(), "Insert Failure: %s" % (insert_sql))
                         print(DateTimeUtil.get_current_time(), "Insert Failure: %d: %s" % (e.args[0], e.args[1]))
                         exit()
             else:
@@ -69,7 +74,7 @@ class MySQL:
                     return insert_id
                 else:
                     return 0
-        except MySQLdb.Error as e:
+        except pymysql.Error as e:
             print(insert_sql)
             print(update_sql)
             print(DateTimeUtil.get_current_time(), "Upsert Failure: %d: %s" % (e.args[0], e.args[1]))
@@ -109,33 +114,33 @@ class MySQL:
                                                               auction_json['Onlookers']) + ",'" + str(
                                                               auction_json['datetime']) + "','" + str(
                                                               auction_json['StatusId']) + "','1'")
-        update_sql = 'UPDATE ' + table_name + ' SET ' \
-                     + 'CourtId=' + str(auction_json['CourtId']) \
-                     + ',Title="' + str(auction_json['Title']) \
-                     + '",CategoryId=' + str(auction_json['CategoryId'])\
-                     + ',Url="' + str(auction_json['Url'])\
-                     + '",StartPrice=' + str(auction_json['StartPrice'])\
-                     + ',CurrentPrice="' + str(auction_json['CurrentPrice'])\
-                     + '",CashDeposit="' + str(auction_json['CashDeposit'])\
-                     + '",PaymentAdvance="' + str(auction_json['PaymentAdvance'])\
-                     + '",AccessPrice="' + str(auction_json['AccessPrice'])\
-                     + '",FareIncrease="' + str(auction_json['FareIncrease'])\
-                     + '",AuctionTimes="' + str(auction_json['AuctionTimes']) \
-                     + '",AuctionType="' + str(auction_json['AuctionType'])\
-                     + '",DelayCycle="' + str(auction_json['DelayCycle'])\
-                     + '",CorporateAgent="' + str(auction_json['CorporateAgent'])\
-                     + '",Phone="' + str(auction_json['Phone'])\
-                     + '",SellingPeriod="' + str(auction_json['SellingPeriod'])\
-                     + '",SetReminders=' + str(auction_json['SetReminders'])\
-                     + ',OnlineCycle="' + str(auction_json['OnlineCycle'])\
-                     + '",BiddingRecord="' + str(auction_json['BiddingRecord'])\
-                     + '",AuctionModel="' + str(auction_json['AuctionModel'])\
-                     + '",Enrollment="' + str(auction_json['Enrollment'])\
-                     + '",SetReminders="' + str(auction_json['SetReminders'])\
-                     + '",Onlookers="' + str(auction_json['Onlookers'])\
-                     + '",UpdatedOn="' + str(auction_json['datetime'])\
-                     + '",StatusId=' + str(auction_json['StatusId'])\
-                     + ',SpiderStatusId=2 WHERE AuctionId=' + str(auction_json['AuctionId'])
+        update_sql = "UPDATE " + table_name + " SET " \
+                     + "CourtId=" + str(auction_json["CourtId"]) \
+                     + ",Title='" + str(auction_json["Title"]) \
+                     + "',CategoryId=" + str(auction_json["CategoryId"])\
+                     + ",Url='" + str(auction_json["Url"])\
+                     + "',StartPrice=" + str(auction_json["StartPrice"])\
+                     + ",CurrentPrice='" + str(auction_json["CurrentPrice"])\
+                     + "',CashDeposit='" + str(auction_json["CashDeposit"])\
+                     + "',PaymentAdvance='" + str(auction_json["PaymentAdvance"])\
+                     + "',AccessPrice='" + str(auction_json["AccessPrice"])\
+                     + "',FareIncrease='" + str(auction_json["FareIncrease"])\
+                     + "',AuctionTimes='" + str(auction_json["AuctionTimes"]) \
+                     + "',AuctionType='" + str(auction_json["AuctionType"])\
+                     + "',DelayCycle='" + str(auction_json["DelayCycle"])\
+                     + "',CorporateAgent='" + str(auction_json["CorporateAgent"])\
+                     + "',Phone='" + str(auction_json["Phone"])\
+                     + "',SellingPeriod='" + str(auction_json["SellingPeriod"])\
+                     + "',SetReminders=" + str(auction_json["SetReminders"])\
+                     + ",OnlineCycle='" + str(auction_json["OnlineCycle"])\
+                     + "',BiddingRecord='" + str(auction_json["BiddingRecord"])\
+                     + "',AuctionModel='" + str(auction_json["AuctionModel"])\
+                     + "',Enrollment='" + str(auction_json["Enrollment"])\
+                     + "',SetReminders='" + str(auction_json["SetReminders"])\
+                     + "',Onlookers='" + str(auction_json["Onlookers"])\
+                     + "',UpdatedOn='" + str(auction_json["datetime"])\
+                     + "',StatusId=" + str(auction_json["StatusId"])\
+                     + ",SpiderStatusId=2 WHERE AuctionId=" + str(auction_json["AuctionId"])
         self.upsert(insert_check, insert_sql, update_sql)
 
 
