@@ -5,8 +5,8 @@
 Auction Spider for ALi Auction site https://sf.taobao.com, craw all auction items
 
 ## Environment
-Language: python 3.6\
-Database: MySQL
+Language: python 3.7\
+Database: MySQL 8
 
 ## Projects
 Python scripts\
@@ -20,4 +20,4 @@ Database scripts for initialization
 5, execute AuctionSpiderALi.py
 
 ## Comment
-Please use it for personal analysis, don't for commercial usage
+Please use it for personal analysis, don't use for commercial usage

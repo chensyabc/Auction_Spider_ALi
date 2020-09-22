@@ -8,8 +8,7 @@ import ssl
 import time, datetime
 import DateTimeUtil
 import UrlUtil
-from threading import Thread
-import threading
+from multiprocessing import Process
 import ThreadUtil
 import decimal
 from decimal import *
@@ -52,13 +51,31 @@ class AuctionSpiderGPai:
 
         top_info = soup.find('tbody', id='J_HoverShow')
         tds = top_info.find_all('td')
-        start_price_span = tds[0].find_all('span')[2]
-        increment_span = tds[1].find_all('span')[2]
-        auction_type_span = tds[2].find_all('span')[1].span
-        cash_deposit_span = tds[3].find_all('span')[1].span
-        auction_cycle_span = tds[4].find_all('span')[1].span
-        prior_buyer_span = tds[5].find_all('span')[1]
-        access_price_span = tds[6].find_all('span')[1].span
+
+        first_line_title = tds[0].find_all('span')[0].text
+        #print('first_line_title: '+ first_line_title)
+        if first_line_title == '保 证 金':
+            # 保 证 金: ¥500, 000            评 估 价: ¥4, 727, 500     竞价周期: 1 天
+            # 起 拍 价: ¥3, 309, 250         优先购买权人: 无            延时周期: 5 分钟
+            # 加价幅度: ¥5, 000
+            start_price_span = tds[3].find_all('span')[2]
+            cash_deposit_span = tds[0].find_all('span')[1].span
+            access_price_span = tds[1].find_all('span')[1].span
+            increment_span = tds[6].find_all('span')[2]
+            auction_type_span = tds[2].find_all('span')[1].span
+            auction_cycle_span = tds[4].find_all('span')[1].span
+            prior_buyer_span = tds[5].find_all('span')[1]
+        else:
+            # 变卖预缴款 : ¥2,204,403.6 	加价幅度 : ¥10,000	变卖周期 : 60天
+            # 保 证 金 : ¥250,000贰拾伍万元	评 估 价 : ¥2,593,416	延时周期 : 5分钟
+            # 变 卖 价 : ¥2,204,403.6	优先购买权人 : 无
+            start_price_span = tds[0].find_all('span')[2]
+            increment_span = tds[1].find_all('span')[2]
+            cash_deposit_span = tds[3].find_all('span')[1].span
+            access_price_span = tds[6].find_all('span')[1].span
+            auction_cycle_span = tds[4].find_all('span')[1].span
+            auction_type_span = tds[2].find_all('span')[1].span
+            prior_buyer_span = tds[5].find_all('span')[1]
 
         self.assign_auction_property(auction_json, 'StartPrice', start_price_span, True)
         self.assign_auction_property(auction_json, 'FareIncrease', increment_span, True)
@@ -111,8 +128,8 @@ class AuctionSpiderGPai:
             mysql_instance.upsert_auction(auction_json, table_name)
         return len(url_partial_list)
 
-    def spider_auctions(self, court_list, is_auction_history, thread_order):
-        print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_order(thread_order) + " Start Craw...")
+    def spider_auctions(self, court_list, is_auction_history, process_order, auction_processes):
+        print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_process_order(process_order) + " Start Craw...")
         mysql_instance = MySQL.MySQL('auction_spider_ali')
         categories = mysql_instance.get_categories()
         statuses = mysql_instance.get_statuses(is_auction_history)
@@ -134,6 +151,10 @@ class AuctionSpiderGPai:
                         if status[3] == 0:
                             continue
                         url_auctions_list = 'https://sf.taobao.com/court_item.htm?user_id=' + user_id + '&category=' + category_id + '&sorder=' + str(status[1])
+                        if url_auctions_list in auction_processes:
+                            print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_process_order(process_order) + " URL has been processed: " + url_auctions_list)
+                            continue
+                        mysql_instance.upsert_auction_process(url_auctions_list)
                         total_count = self.get_total_count(url_auctions_list)
                         if total_count > 0:
                             # get page count
@@ -145,12 +166,13 @@ class AuctionSpiderGPai:
                             # process url to get html and insert
                             # print('total count: ' + str(total_count) + ' page count: ' + str(page_total))
                             for page_number in range(1, page_total + 1):
-                                print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_order(thread_order) + "Process Craw...", "courts " + str(court_order+1) + "/" + str(len(court_list)), "page "+str(page_number)+"/"+str(page_total))
+                                print(DateTimeUtil.get_current_time() + ThreadUtil.get_thread_id_process_order(process_order) + "Process Craw...", "courts " + str(court_order + 1) + "/" + str(len(court_list)) + " page " + str(page_number) + "/" + str(page_total))
                                 url = url_auctions_list + '&page=' + str(page_number)
                                 count += self.spider_auction_list_and_insert(url, user_id, category_id, status[1], mysql_instance, is_auction_history)
+                        mysql_instance.upsert_auction_process(url_auctions_list)
         # print(court[2] + ": spider finish with count: " + str(count))
-        print(DateTimeUtil.get_current_time(), "spider finish with count: ", str(count), ThreadUtil.get_thread_id_order(thread_order))
-        print(DateTimeUtil.get_current_time(), "Finish Craw..." + ThreadUtil.get_thread_id_order(thread_order))
+        print(DateTimeUtil.get_current_time() + "spider finish with count: " + str(count) + ThreadUtil.get_thread_id_process_order(process_order))
+        print(DateTimeUtil.get_current_time() + "Finish Craw..." + ThreadUtil.get_thread_id_process_order(process_order))
 
 
 if __name__ == '__main__':
@@ -160,23 +182,27 @@ if __name__ == '__main__':
     print(DateTimeUtil.get_current_time(), "Get Courts Start--------------------------------------------------------------")
     mysql = MySQL.MySQL('auction_spider_ali')
     courts = mysql.get_courts()
+    auction_process_all = mysql.query_auction_process_all()
+    auction_processes = []
+    for i in range(len(auction_process_all)):
+        auction_processes.append(auction_process_all[i][1])
     print(DateTimeUtil.get_current_time(), "Get Courts End--------------------------------------------------------------")
-    thread_count = 4
-    each_count = len(courts) // thread_count
+    process_count = 100
+    each_count = len(courts) // process_count
     # start multiple thread
-    thread_array = {}
+    process_array = {}
     start_time = time.time()
     is_auction_history = False
     print(DateTimeUtil.get_current_time(), "Spider Courts Start--------------------------------------------------------------")
-    for thread_order in range(thread_count):
+    for process_order in range(process_count):
         # t = Thread(target=auctionSpiderGPai.spider_auctions, args=(courts[tid:(tid+1)],))
-        print(DateTimeUtil.get_current_time() + ' Thread Order-' + str(thread_order), 'court count: ' + str(len(courts[thread_order * each_count:(thread_order + 1) * each_count])) + " court list: below")
-        print(courts[thread_order * each_count:(thread_order + 1) * each_count])
-        t = Thread(target=auctionSpiderGPai.spider_auctions, args=(courts[thread_order * each_count:(thread_order + 1) * each_count], is_auction_history,str(thread_order),))
+        print(DateTimeUtil.get_current_time() + ' Process Order-' + str(process_order), 'court count: ' + str(len(courts[process_order * each_count:(process_order + 1) * each_count])) + " court list: below")
+        print(courts[process_order * each_count:(process_order + 1) * each_count])
+        t = Process(target=auctionSpiderGPai.spider_auctions, args=(courts[process_order * each_count:(process_order + 1) * each_count], is_auction_history, str(process_order), auction_processes,))
         t.start()
-        thread_array[thread_order] = t
-    for i in range(thread_count):
-        thread_array[i].join()
+        process_array[process_order] = t
+    for i in range(process_count):
+        process_array[i].join()
     end_time = time.time()
     print(DateTimeUtil.get_current_time(), "Spider Courts End--------------------------------------------------------------")
     print(DateTimeUtil.get_current_time(), "Total time: {}".format(end_time - start_time))

@@ -112,6 +112,16 @@ CREATE TABLE IF NOT EXISTS Courts
   PRIMARY KEY (`Id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS Auction_Processes;
+CREATE TABLE IF NOT EXISTS Auction_Processes
+(
+  `Id` INT AUTO_INCREMENT,
+  `URL` VARCHAR(1000) NOT NULL,
+  `IsFinished` BIT NOT NULL,
+  `CreatedOn` DATETIME NOT NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
 INSERT INTO Auction_Statuses(StatusId, StatusName, IsSpiderThisStatus)
     SELECT 0, N'正在进行', 1
     UNION SELECT 1, N'即将开始', 1
@@ -137,3 +147,15 @@ INSERT INTO auction_categories(CategoryId, CategoryName)
     UNION SELECT 383, N'船舶'
     UNION SELECT 385, N'无形资产'
     UNION SELECT 386, N'财产性权益'
+
+CREATE VIEW Auction_Analysis
+AS
+(
+	SELECT 	CurrentPrice AS CurrentPrice_MoveForward
+					, AccessPrice AS AccessPrice_MoveForward
+					, AccessPrice-CurrentPrice AS PriceDiffer
+					, CONCAT(CAST(CAST(100*(AccessPrice-CurrentPrice)/CurrentPrice AS DECIMAL(18,2)) AS CHAR), '%') AS PriceDifferRate
+					, au.*
+	FROM 		auctions au
+	ORDER BY (AccessPrice-CurrentPrice)/AccessPrice DESC
+);

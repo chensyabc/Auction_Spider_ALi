@@ -143,6 +143,21 @@ class MySQL:
                      + ",SpiderStatusId=2 WHERE AuctionId=" + str(auction_json["AuctionId"])
         self.upsert(insert_check, insert_sql, update_sql)
 
+    def query_auction_process_all(self):
+        query_sql = "SELECT * FROM Auction_Processes WHERE IsFinished = TRUE"
+        query_result = self.select(query_sql)
+        return query_result
+
+    def query_auction_process(self, auction_process_url):
+        query_sql = "SELECT * FROM Auction_Processes WHERE IsFinished = TRUE AND URL = '" + auction_process_url + "'"
+        query_result = self.select(query_sql)
+        return query_result
+
+    def upsert_auction_process(self, auction_process_url):
+        insert_check = "SELECT COUNT(*) FROM Auction_Processes WHERE URL = '" + auction_process_url + "'"
+        insert_sql = "INSERT INTO Auction_Processes(URL, IsFinished, CreatedOn) VALUES('" + auction_process_url + "', FALSE, '" + DateTimeUtil.get_current_datetime() + "')"
+        update_sql = "UPDATE Auction_Processes SET IsFinished = TRUE WHERE URL = '" + auction_process_url + "'"
+        self.upsert(insert_check, insert_sql, update_sql)
 
 # if __name__ == '__main__':
 #     mysql = MySQL('auction_spider_ali')
